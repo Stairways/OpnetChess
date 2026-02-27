@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>OP_NET Chess — Bitcoin L1</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg:       #07050f;
+  --surface:  #0e0b1a;
+  --panel:    #130f22;
+  --border:   #2a1f45;
+  --orange:   #f97316;
+  --gold:     #f59e0b;
+  --purple:   #7c3aed;
+  --purple-l: #a78bfa;
+  --text:     #e8ddd0;
+  --muted:    #7a6e8a;
+  --success:  #22c55e;
+  --ember:    #ef4444;
+  --light-sq: #2d1f4e;
+  --dark-sq:  #0f0a1f;
+  --hl:       rgba(249,115,22,0.45);
+  --move-hl:  rgba(124,58,237,0.35);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Space Mono',monospace;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+canvas#rippleCanvas{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+body::before{
+  content:'';position:fixed;inset:0;
+  background:radial-gradient(ellipse at 50% 50%,transparent 20%,rgba(7,5,15,0.82) 100%);
+  pointer-events:none;z-index:1;
+}
+body::after{
+  content:'';position:fixed;inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);
+  pointer-events:none;z-index:9999;
+}
+
+/* ── HEADER ── */
+header{
+  position:relative;z-index:10;
+  border-bottom:1px solid var(--border);
+  padding:0 1.5rem;
+  display:flex;align-items:center;justify-content:space-between;
+  height:60px;
+  background:rgba(7,5,15,0.92);backdrop-filter:blur(12px);
+}
+.logo-text{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:.08em;
+  background:linear-gradient(135deg,var(--orange),var(--gold));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.logo-sub{font-size:.55rem;color:var(--muted);letter-spacing:.2em;text-transform:uppercase}
+.header-r{display:flex;align-items:center;gap:.8rem}
+.net-badge{display:flex;align-items:center;gap:5px;padding:3px 10px;border:1px solid var(--border);
+  font-size:.6rem;color:var(--muted);letter-spacing:.15em;text-transform:uppercase}
+.net-dot{width:5px;height:5px;border-radius:50%;background:var(--success);
+  box-shadow:0 0 5px var(--success);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.btn{background:transparent;border:1px solid var(--orange);color:var(--orange);
+  font-family:'Space Mono',monospace;font-size:.65rem;letter-spacing:.15em;text-transform:uppercase;
+  padding:7px 16px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.btn::before{content:'';position:absolute;inset:0;background:var(--orange);
+  transform:translateX(-100%);transition:transform .2s;z-index:-1}
+.btn:hover::before{transform:translateX(0)}
+.btn:hover{color:var(--bg)}
+.btn.purple{border-color:var(--purple-l);color:var(--purple-l)}
+.btn.purple::before{background:var(--purple-l)}
+.btn.purple:hover{color:var(--bg)}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn:disabled::before{display:none}
+.btn.connected{border-color:var(--success);color:var(--success)}
+.btn.connected::before{background:var(--success)}
+.btn.connected:hover{color:var(--bg)}
+
+/* ── LAYOUT ── */
+.app{position:relative;z-index:2;display:grid;grid-template-columns:260px 1fr 280px;
+  gap:1rem;padding:1rem 1.2rem;max-width:1400px;margin:0 auto;min-height:calc(100vh - 60px)}
+
+/* ── PANELS ── */
+.panel{background:rgba(14,11,26,.85);border:1px solid var(--border);padding:1.2rem;position:relative;backdrop-filter:blur(6px)}
+.panel::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--purple),var(--orange),transparent)}
+.panel-title{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.1em;
+  color:var(--gold);margin-bottom:.3rem}
+.panel-desc{font-size:.6rem;color:var(--muted);margin-bottom:1rem;letter-spacing:.05em}
+.divider{height:1px;background:var(--border);margin:.8rem 0}
+
+/* ── LP POOL ── */
+.lp-stat{display:flex;justify-content:space-between;align-items:center;padding:.4rem 0;
+  border-bottom:1px solid rgba(42,31,69,.5);font-size:.68rem}
+.lp-stat:last-child{border-bottom:none}
+.lp-label{color:var(--muted);letter-spacing:.05em}
+.lp-value{color:var(--gold);font-weight:700}
+.lp-value.orange{color:var(--orange)}
+.lp-value.green{color:var(--success)}
+
+.token-choice{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin:.6rem 0}
+.token-btn{background:var(--panel);border:1px solid var(--border);color:var(--muted);
+  font-family:'Space Mono',monospace;font-size:.62rem;letter-spacing:.08em;
+  padding:.6rem .5rem;cursor:pointer;transition:all .2s;text-align:center}
+.token-btn:hover,.token-btn.active{border-color:var(--orange);color:var(--orange);
+  background:rgba(249,115,22,.08)}
+.token-btn .t-icon{font-size:1.3rem;display:block;margin-bottom:3px}
+
+.entry-input{width:100%;background:var(--panel);border:1px solid var(--border);
+  color:var(--text);font-family:'Space Mono',monospace;font-size:.8rem;
+  padding:.5rem .7rem;outline:none;transition:border-color .2s;margin-top:.4rem}
+.entry-input:focus{border-color:var(--orange)}
+
+.fee-row{display:flex;justify-content:space-between;font-size:.6rem;color:var(--muted);
+  margin-top:.4rem;padding:.3rem .2rem}
+.fee-row span{color:var(--text)}
+
+/* ── GAME MODE ── */
+.mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin:.6rem 0}
+.mode-btn{background:var(--panel);border:1px solid var(--border);color:var(--muted);
+  font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:.06em;
+  padding:.8rem .5rem;cursor:pointer;transition:all .2s;text-align:center}
+.mode-btn:hover,.mode-btn.active{border-color:var(--purple-l);color:var(--purple-l);
+  background:rgba(124,58,237,.1)}
+.mode-btn .m-icon{font-size:1.5rem;display:block;margin-bottom:4px}
+
+/* ── MIDDLE: GAME AREA ── */
+.game-area{display:flex;flex-direction:column;gap:1rem}
+
+.player-bar{display:flex;align-items:center;justify-content:space-between;
+  background:rgba(14,11,26,.85);border:1px solid var(--border);
+  padding:.6rem 1rem;backdrop-filter:blur(6px)}
+.player-info{display:flex;align-items:center;gap:.7rem}
+.player-avatar{width:32px;height:32px;border-radius:2px;display:flex;align-items:center;
+  justify-content:center;font-size:1.2rem;flex-shrink:0}
+.player-avatar.orange-side{background:rgba(249,115,22,.15);border:1px solid rgba(249,115,22,.4)}
+.player-avatar.purple-side{background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.4)}
+.player-name{font-size:.72rem;font-weight:700;letter-spacing:.05em}
+.player-score{font-size:.6rem;color:var(--muted)}
+.timer{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:.1em;color:var(--gold)}
+.timer.low{color:var(--ember);animation:blink .8s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+.turn-indicator{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.turn-indicator.active{background:var(--success);box-shadow:0 0 6px var(--success)}
+.turn-indicator.inactive{background:var(--muted)}
+
+/* ── CHESS BOARD ── */
+.board-wrap{position:relative;display:flex;justify-content:center;align-items:center}
+.board-container{position:relative}
+.coord-col{display:flex;flex-direction:column;justify-content:space-around;
+  height:100%;width:18px;align-items:center}
+.coord-row{display:flex;justify-content:space-around;height:18px;align-items:center}
+.coord{font-size:.55rem;color:var(--muted);letter-spacing:.05em}
+.board-grid{display:grid;grid-template-columns:repeat(8,1fr);
+  border:2px solid var(--border);box-shadow:0 0 40px rgba(124,58,237,.2),0 0 80px rgba(0,0,0,.8)}
+.sq{width:68px;height:68px;position:relative;cursor:pointer;transition:background .15s;
+  display:flex;align-items:center;justify-content:center;user-select:none}
+.sq.light{background:var(--light-sq)}
+.sq.dark{background:var(--dark-sq)}
+.sq.selected{background:var(--hl)!important;box-shadow:inset 0 0 0 2px var(--orange)}
+.sq.legal{background:var(--move-hl)!important}
+.sq.legal::after{content:'';width:22px;height:22px;border-radius:50%;
+  background:rgba(124,58,237,.5);position:absolute}
+.sq.last-move{box-shadow:inset 0 0 0 2px var(--gold)}
+.sq.in-check{background:rgba(239,68,68,.35)!important;box-shadow:inset 0 0 0 2px var(--ember)}
+
+.piece{width:58px;height:58px;display:flex;align-items:center;justify-content:center;
+  font-size:2.4rem;position:relative;z-index:1;transition:transform .15s;
+  filter:drop-shadow(0 2px 4px rgba(0,0,0,.7));pointer-events:none;line-height:1}
+.piece:hover{transform:scale(1.08)}
+.piece.white{filter:drop-shadow(0 0 4px rgba(249,115,22,.6)) drop-shadow(0 2px 4px rgba(0,0,0,.8))}
+.piece.black{filter:drop-shadow(0 0 4px rgba(124,58,237,.6)) drop-shadow(0 2px 4px rgba(0,0,0,.8))}
+
+/* Capture dot */
+.sq.legal.has-piece::after{content:'';width:100%;height:100%;border-radius:0;
+  background:transparent;border:3px solid rgba(124,58,237,.6);position:absolute}
+
+/* ── STATUS BAR ── */
+.status-bar{background:rgba(14,11,26,.85);border:1px solid var(--border);
+  padding:.7rem 1rem;display:flex;align-items:center;gap:.8rem;backdrop-filter:blur(6px)}
+.status-icon{font-size:1rem}
+.status-text{font-size:.68rem;color:var(--text);letter-spacing:.04em}
+.status-text strong{color:var(--gold)}
+
+/* ── RIGHT PANEL ── */
+.move-list{max-height:220px;overflow-y:auto;font-size:.62rem;scrollbar-width:thin;
+  scrollbar-color:var(--border) transparent}
+.move-list::-webkit-scrollbar{width:4px}
+.move-list::-webkit-scrollbar-track{background:transparent}
+.move-list::-webkit-scrollbar-thumb{background:var(--border)}
+.move-row{display:grid;grid-template-columns:24px 1fr 1fr;gap:.3rem;
+  padding:.25rem .2rem;border-bottom:1px solid rgba(42,31,69,.4)}
+.move-row:last-child{border-bottom:none}
+.move-num{color:var(--muted)}
+.move-w{color:var(--orange)}
+.move-b{color:var(--purple-l)}
+
+.captured-row{display:flex;flex-wrap:wrap;gap:3px;min-height:28px;padding:.3rem 0}
+.cap-piece{font-size:1rem;opacity:.7}
+
+/* ── BETS / SPECTATORS ── */
+.bet-row{display:flex;justify-content:space-between;align-items:center;
+  padding:.4rem 0;border-bottom:1px solid rgba(42,31,69,.4);font-size:.62rem}
+.bet-row:last-child{border-bottom:none}
+.bet-addr{color:var(--muted)}
+.bet-side{padding:2px 8px;font-size:.58rem;letter-spacing:.1em}
+.bet-side.orange{background:rgba(249,115,22,.15);border:1px solid rgba(249,115,22,.3);color:var(--orange)}
+.bet-side.purple{background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.3);color:var(--purple-l)}
+.bet-amount{color:var(--gold)}
+
+.spec-count{display:flex;align-items:center;gap:6px;font-size:.65rem;color:var(--muted);margin-bottom:.6rem}
+.spec-dot{width:6px;height:6px;border-radius:50%;background:var(--success);
+  box-shadow:0 0 5px var(--success);animation:pulse 1.5s infinite}
+
+/* ── TIP JAR ── */
+.tip-jar{border:1px solid rgba(249,115,22,.3);background:rgba(249,115,22,.05);
+  padding:.8rem;text-align:center;margin-top:.6rem}
+.tip-jar-icon{font-size:1.8rem}
+.tip-jar-total{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:var(--orange);letter-spacing:.08em}
+.tip-jar-label{font-size:.58rem;color:var(--muted);letter-spacing:.12em;text-transform:uppercase}
+
+/* ── LOBBY / OVERLAY ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);
+  z-index:100;display:flex;align-items:center;justify-content:center}
+.lobby{background:var(--surface);border:1px solid var(--border);
+  padding:2.5rem;width:100%;max-width:520px;position:relative;animation:fadeUp .4s ease both}
+.lobby::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--orange),var(--gold),var(--purple))}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.lobby-title{font-family:'Bebas Neue',sans-serif;font-size:2.2rem;letter-spacing:.1em;
+  background:linear-gradient(135deg,var(--orange),var(--gold));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  margin-bottom:.2rem}
+.lobby-sub{font-size:.68rem;color:var(--muted);margin-bottom:1.5rem;letter-spacing:.05em}
+.lobby-section{margin-bottom:1.2rem}
+.lobby-section-title{font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:.5rem;padding-bottom:.3rem;border-bottom:1px solid var(--border)}
+.side-pick{display:grid;grid-template-columns:1fr auto 1fr;gap:.5rem;align-items:center;margin:.6rem 0}
+.side-card{background:var(--panel);border:1px solid var(--border);padding:.8rem;
+  cursor:pointer;text-align:center;transition:all .2s}
+.side-card:hover,.side-card.active{border-color:var(--orange)}
+.side-card.purple-card:hover,.side-card.purple-card.active{border-color:var(--purple-l)}
+.side-card .side-icon{font-size:2rem;margin-bottom:4px}
+.side-card .side-name{font-size:.7rem;font-weight:700;letter-spacing:.06em}
+.side-card .side-desc{font-size:.58rem;color:var(--muted);margin-top:2px}
+.vs-badge{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--muted)}
+
+.lobby-summary{background:var(--panel);border:1px solid var(--border);padding:.8rem;
+  font-size:.62rem;margin-top:.8rem}
+.lobby-summary-row{display:flex;justify-content:space-between;padding:.2rem 0}
+.lobby-summary-row span:last-child{color:var(--gold)}
+
+.btn-xl{width:100%;margin-top:1rem;background:linear-gradient(135deg,var(--orange),var(--gold));
+  border:none;color:var(--bg);font-family:'Bebas Neue',sans-serif;font-size:1.4rem;
+  letter-spacing:.15em;padding:14px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.btn-xl:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(249,115,22,.3)}
+.btn-xl:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-xl .shimmer{position:absolute;inset:0;
+  background:linear-gradient(135deg,transparent 40%,rgba(255,255,255,.15) 50%,transparent 60%);
+  transform:translateX(-100%) skewX(-15deg)}
+.btn-xl:not(:disabled):hover .shimmer{animation:shimmer .6s ease forwards}
+@keyframes shimmer{to{transform:translateX(200%) skewX(-15deg)}}
+
+/* ── WINNER MODAL ── */
+.winner-modal{text-align:center;max-width:440px}
+.winner-crown{font-size:4rem;margin-bottom:.5rem;animation:bounce 1s ease infinite}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.winner-title{font-family:'Bebas Neue',sans-serif;font-size:2.8rem;letter-spacing:.1em;
+  background:linear-gradient(135deg,var(--orange),var(--gold));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.winner-sub{font-size:.72rem;color:var(--muted);margin:.5rem 0 1.5rem}
+.prize-box{background:var(--panel);border:1px solid rgba(249,115,22,.4);
+  padding:1rem;margin-bottom:1rem}
+.prize-amount{font-family:'Bebas Neue',sans-serif;font-size:2rem;color:var(--orange);letter-spacing:.08em}
+.prize-label{font-size:.6rem;color:var(--muted);letter-spacing:.12em;text-transform:uppercase}
+
+/* ── RESPONSIVE ── */
+@media(max-width:1100px){
+  .app{grid-template-columns:220px 1fr 240px;gap:.7rem;padding:.7rem}
+  .sq{width:58px;height:58px}
+  .piece{width:50px;height:50px;font-size:2rem}
+}
+@media(max-width:900px){
+  .app{grid-template-columns:1fr;grid-template-rows:auto}
+  .left-col,.right-col{display:none}
+  .sq{width:52px;height:52px}
+  .piece{width:46px;height:46px;font-size:1.8rem}
+}
+
+/* scrollbar */
+*{scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+</style>
+</head>
+<body>
+<canvas id="rippleCanvas"></canvas>
+
+<!-- ── HEADER ── -->
+<header>
+  <div>
+    <div class="logo-text">♟ OP_NET Chess</div>
+    <div class="logo-sub">Bitcoin L1 · Wagered Chess</div>
+  </div>
+  <div class="header-r">
+    <div class="net-badge"><div class="net-dot"></div>Mainnet</div>
+    <button class="btn" id="watchBtn" onclick="toggleSpectate()">👁 Watch</button>
+    <button class="btn connected" id="connectBtn" onclick="connectWallet()">Connect Wallet</button>
+  </div>
+</header>
+
+<!-- ── MAIN APP ── -->
+<div class="app">
+
+  <!-- ── LEFT: LP + ENTRY ── -->
+  <div class="left-col" style="display:flex;flex-direction:column;gap:.8rem">
+
+    <!-- LP Pool -->
+    <div class="panel">
+      <div class="panel-title">Prize Pool</div>
+      <div class="panel-desc">Funded by entry fees. Winner claims weekly.</div>
+      <div class="lp-stat">
+        <span class="lp-label">Total LP</span>
+        <span class="lp-value" id="lpTotal">84,200 $MOTO</span>
+      </div>
+      <div class="lp-stat">
+        <span class="lp-label">In $PILL</span>
+        <span class="lp-value orange" id="lpPill">12,500,000</span>
+      </div>
+      <div class="lp-stat">
+        <span class="lp-label">Games This Week</span>
+        <span class="lp-value" id="lpGames">47</span>
+      </div>
+      <div class="lp-stat">
+        <span class="lp-label">Next Distribution</span>
+        <span class="lp-value green" id="lpNext">5d 14h</span>
+      </div>
+      <div class="lp-stat">
+        <span class="lp-label">Creator Tip Jar</span>
+        <span class="lp-value orange" id="tipTotal">3,210 $MOTO</span>
+      </div>
+    </div>
+
+    <!-- Entry -->
+    <div class="panel">
+      <div class="panel-title">Join Game</div>
+      <div class="panel-desc">Choose token & wager to enter</div>
+      <div class="lobby-section-title">Entry Token</div>
+      <div class="token-choice">
+        <button class="token-btn active" id="tkMOTO" onclick="selectToken('MOTO')">
+          <span class="t-icon">🏍</span>$MOTO
+        </button>
+        <button class="token-btn" id="tkPILL" onclick="selectToken('PILL')">
+          <span class="t-icon">🟠</span>$PILL
+        </button>
+      </div>
+      <div class="lobby-section-title" style="margin-top:.6rem">Wager Amount</div>
+      <input class="entry-input" id="wagerInput" type="number" value="1000" min="100" placeholder="e.g. 1000"/>
+      <div class="fee-row">
+        <span>LP (90%)</span><span id="lpCut">900 MOTO</span>
+      </div>
+      <div class="fee-row" style="padding-top:0">
+        <span>Creator (10%)</span><span id="creatorCut">100 MOTO</span>
+      </div>
+      <div class="divider"></div>
+      <div class="lobby-section-title">Mode</div>
+      <div class="mode-grid">
+        <button class="mode-btn active" id="modeHuman" onclick="selectMode('human')">
+          <span class="m-icon">🧑‍🤝‍🧑</span>vs Human
+        </button>
+        <button class="mode-btn" id="modeAI" onclick="selectMode('ai')">
+          <span class="m-icon">🤖</span>vs AI
+        </button>
+      </div>
+      <button class="btn-xl" style="margin-top:.8rem;font-size:1rem;padding:10px" onclick="showLobby()">
+        <span class="shimmer"></span>⚔ Enter Match
+      </button>
+    </div>
+
+    <!-- Tip Jar -->
+    <div class="panel">
+      <div class="tip-jar">
+        <div class="tip-jar-icon">🫙</div>
+        <div class="tip-jar-total" id="tipDisplay">3,210</div>
+        <div class="tip-jar-label">Creator Tip Jar ($MOTO)</div>
+      </div>
+      <button class="btn" style="width:100%;margin-top:.6rem;font-size:.62rem" onclick="sendTip()">
+        + Send Tip
+      </button>
+    </div>
+  </div>
+
+  <!-- ── CENTRE: BOARD ── -->
+  <div class="game-area">
+
+    <!-- Top player -->
+    <div class="player-bar">
+      <div class="player-info">
+        <div class="turn-indicator" id="turnB"></div>
+        <div class="player-avatar purple-side">🐱</div>
+        <div>
+          <div class="player-name" style="color:var(--purple-l)" id="playerBName">OP_NET Side</div>
+          <div class="player-score">
+            Captured: <span id="capturedByB"></span>
+          </div>
+        </div>
+      </div>
+      <div class="timer" id="timerB">10:00</div>
+    </div>
+
+    <!-- Board -->
+    <div class="board-wrap">
+      <div style="display:flex;gap:0">
+        <!-- rank labels -->
+        <div class="coord-col" id="rankLabels"></div>
+        <div>
+          <div id="chessBoard" class="board-grid"></div>
+          <!-- file labels -->
+          <div class="coord-row" id="fileLabels" style="padding-left:0;width:100%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom player -->
+    <div class="player-bar">
+      <div class="player-info">
+        <div class="turn-indicator" id="turnW"></div>
+        <div class="player-avatar orange-side">🏍</div>
+        <div>
+          <div class="player-name" style="color:var(--orange)" id="playerWName">Motoswap Side</div>
+          <div class="player-score">
+            Captured: <span id="capturedByW"></span>
+          </div>
+        </div>
+      </div>
+      <div class="timer" id="timerW">10:00</div>
+    </div>
+
+    <!-- Status -->
+    <div class="status-bar" id="statusBar">
+      <span class="status-icon">⚔</span>
+      <span class="status-text" id="statusText"><strong>Motoswap Side</strong> to move — Orange Army advances</span>
+    </div>
+
+    <!-- Controls -->
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+      <button class="btn" onclick="undoMove()" id="undoBtn">↩ Undo</button>
+      <button class="btn purple" onclick="offerDraw()">⚖ Draw</button>
+      <button class="btn" style="border-color:var(--ember);color:var(--ember)" onclick="resignGame()">🏳 Resign</button>
+      <button class="btn purple" onclick="flipBoard()">↕ Flip</button>
+      <button class="btn" style="margin-left:auto" onclick="showLobby()">⚔ New Game</button>
+    </div>
+  </div>
+
+  <!-- ── RIGHT: MOVES + BETS ── -->
+  <div class="right-col" style="display:flex;flex-direction:column;gap:.8rem">
+
+    <!-- Move list -->
+    <div class="panel">
+      <div class="panel-title">Move History</div>
+      <div class="move-list" id="moveList">
+        <div style="font-size:.62rem;color:var(--muted);padding:.5rem 0">Game not started yet</div>
+      </div>
+    </div>
+
+    <!-- Captured pieces -->
+    <div class="panel" style="padding:.8rem 1.2rem">
+      <div class="panel-title" style="font-size:.9rem">Captured</div>
+      <div style="font-size:.58rem;color:var(--muted);margin-bottom:3px">🟠 Orange took:</div>
+      <div class="captured-row" id="capturedW"></div>
+      <div style="font-size:.58rem;color:var(--muted);margin-bottom:3px">🟣 Purple took:</div>
+      <div class="captured-row" id="capturedB"></div>
+    </div>
+
+    <!-- Live bets -->
+    <div class="panel">
+      <div class="panel-title">Live Bets</div>
+      <div class="spec-count"><div class="spec-dot"></div><span id="specCount">12 watching</span></div>
+      <div id="betsList"></div>
+      <div class="divider"></div>
+      <div class="lobby-section-title">Place Bet</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem;margin-bottom:.4rem">
+        <button class="token-btn" id="betOrange" onclick="selectBetSide('orange')" style="font-size:.6rem;padding:.5rem">
+          🏍 Orange
+        </button>
+        <button class="token-btn" id="betPurple" onclick="selectBetSide('purple')" style="font-size:.6rem;padding:.5rem">
+          🐱 Purple
+        </button>
+      </div>
+      <input class="entry-input" id="betAmount" type="number" value="500" placeholder="500" style="font-size:.72rem;padding:.4rem .6rem"/>
+      <button class="btn" style="width:100%;margin-top:.5rem;font-size:.6rem" onclick="placeBet()">
+        Place Bet
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── LOBBY OVERLAY ── -->
+<div class="overlay" id="lobbyOverlay" style="display:none">
+  <div class="lobby">
+    <div class="lobby-title">♟ Enter the Arena</div>
+    <div class="lobby-sub">Bitcoin L1 wagered chess · OP_NET ecosystem pieces</div>
+
+    <div class="lobby-section">
+      <div class="lobby-section-title">Choose Your Side</div>
+      <div class="side-pick">
+        <div class="side-card active" id="sideOrange" onclick="pickSide('orange')">
+          <div class="side-icon">🏍</div>
+          <div class="side-name" style="color:var(--orange)">Orange Army</div>
+          <div class="side-desc">Motoswap · $MOTO · $PILL</div>
+        </div>
+        <div class="vs-badge">VS</div>
+        <div class="side-card purple-card" id="sidePurple" onclick="pickSide('purple')">
+          <div class="side-icon">🐱</div>
+          <div class="side-name" style="color:var(--purple-l)">OP_NET Army</div>
+          <div class="side-desc">Motocats · Nodes · Bitcoin</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="lobby-section">
+      <div class="lobby-section-title">Game Mode</div>
+      <div class="mode-grid">
+        <button class="mode-btn active" id="lobbyModeHuman" onclick="lobbySelectMode('human')">
+          <span class="m-icon">🧑‍🤝‍🧑</span>vs Human<br/><span style="font-size:.55rem;color:var(--muted)">Wait for opponent</span>
+        </button>
+        <button class="mode-btn" id="lobbyModeAI" onclick="lobbySelectMode('ai')">
+          <span class="m-icon">🤖</span>vs AI<br/><span style="font-size:.55rem;color:var(--muted)">Play instantly</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="lobby-section">
+      <div class="lobby-section-title">Entry Wager</div>
+      <div class="token-choice">
+        <button class="token-btn active" id="lobbyTkMOTO" onclick="lobbySelectToken('MOTO')">
+          <span class="t-icon">🏍</span>$MOTO
+        </button>
+        <button class="token-btn" id="lobbyTkPILL" onclick="lobbySelectToken('PILL')">
+          <span class="t-icon">🟠</span>$PILL
+        </button>
+      </div>
+      <input class="entry-input" id="lobbyWager" type="number" value="1000" min="100" placeholder="e.g. 1000"/>
+    </div>
+
+    <div class="lobby-summary">
+      <div class="lobby-summary-row"><span>Your wager</span><span id="summaryWager">1,000 $MOTO</span></div>
+      <div class="lobby-summary-row"><span>LP (90%)</span><span id="summaryLP">900 goes to prize pool</span></div>
+      <div class="lobby-summary-row"><span>Creator (10%)</span><span id="summaryTip">100 to tip jar</span></div>
+      <div class="lobby-summary-row"><span>Potential win</span><span id="summaryWin" style="color:var(--success)">~1,800 $MOTO</span></div>
+    </div>
+
+    <button class="btn-xl" onclick="startGame()">
+      <span class="shimmer"></span>⚔ &nbsp;Enter Match &amp; Lock Wager
+    </button>
+    <button class="btn" style="width:100%;margin-top:.5rem;font-size:.62rem;border-color:var(--muted);color:var(--muted)" onclick="closeLobby()">
+      Cancel
+    </button>
+  </div>
+</div>
+
+<!-- ── WINNER OVERLAY ── -->
+<div class="overlay" id="winnerOverlay" style="display:none">
+  <div class="lobby winner-modal">
+    <div class="winner-crown" id="winnerCrown">🏆</div>
+    <div class="winner-title" id="winnerTitle">VICTORY!</div>
+    <div class="winner-sub" id="winnerSub">Orange Army wins the match</div>
+    <div class="prize-box">
+      <div class="prize-amount" id="prizeAmount">+1,800 $MOTO</div>
+      <div class="prize-label">Added to weekly prize pool — claim Friday</div>
+    </div>
+    <div style="font-size:.62rem;color:var(--muted);margin-bottom:1rem">
+      Your winnings accumulate in the LP and are distributed every Friday based on your winning percentage this week.
+    </div>
+    <button class="btn-xl" onclick="closeWinner()">
+      <span class="shimmer"></span>Play Again
+    </button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+//  ECOSYSTEM PIECE DEFINITIONS
+//  White = Orange Army (Motoswap)
+//  Black = OP_NET Army (Motocats / OP_NET)
+// ═══════════════════════════════════════════════════
+const PIECES = {
+  // White pieces — Motoswap / Orange ecosystem
+  wK: { emoji:'🏦', label:'Motoswap AMM (King)',   value:0  },
+  wQ: { emoji:'🟠', label:'Orange Pill (Queen)',    value:9  },
+  wR: { emoji:'₿',  label:'Bitcoin Block (Rook)',   value:5  },
+  wB: { emoji:'🔶', label:'OP Node (Bishop)',        value:3  },
+  wN: { emoji:'🏍', label:'MOTO Rider (Knight)',     value:3  },
+  wP: { emoji:'🐾', label:'Motocat Pawn',            value:1  },
+  // Black pieces — OP_NET / Purple side
+  bK: { emoji:'🖥', label:'OP_NET Core (King)',      value:0  },
+  bQ: { emoji:'💜', label:'PILL Node (Queen)',       value:9  },
+  bR: { emoji:'🟣', label:'Purple Block (Rook)',     value:5  },
+  bB: { emoji:'🔷', label:'Network Node (Bishop)',   value:3  },
+  bN: { emoji:'🐱', label:'Motocat Knight',          value:3  },
+  bP: { emoji:'⬡',  label:'OP_NET Pawn',             value:1  },
+};
+
+// ═══════════════════════════════════════════════════
+//  CHESS LOGIC
+// ═══════════════════════════════════════════════════
+const FILES = ['a','b','c','d','e','f','g','h'];
+let board = [], turn = 'w', selectedSq = null, legalMoves = [],
+    moveHistory = [], capturedByW = [], capturedByB = [],
+    gameOver = false, boardFlipped = false,
+    lastMove = null, inCheck = false,
+    timerWVal = 600, timerBVal = 600, timerInterval = null,
+    gameMode = 'human', playerSide = 'w',
+    selectedToken = 'MOTO', wager = 1000,
+    walletConnected = true,  // demo starts connected
+    betSide = 'orange';
+
+function initBoard() {
+  board = Array(8).fill(null).map(()=>Array(8).fill(null));
+  // Black back rank (row 0)
+  board[0] = ['bR','bN','bB','bQ','bK','bB','bN','bR'];
+  board[1] = Array(8).fill('bP');
+  // White back rank (row 7)
+  board[6] = Array(8).fill('wP');
+  board[7] = ['wR','wN','wB','wQ','wK','wB','wN','wR'];
+  turn='w'; selectedSq=null; legalMoves=[]; moveHistory=[];
+  capturedByW=[]; capturedByB=[]; gameOver=false; lastMove=null; inCheck=false;
+  clearInterval(timerInterval);
+  timerWVal=600; timerBVal=600;
+  updateTimerDisplay();
+  startTimer();
+  renderBoard();
+  updateMoveList();
+  updateCaptured();
+  updateStatus();
+}
+
+// ── PIECE MOVEMENT RULES ──
+function getLegalMoves(r,c,brd,t,ignoreCastle){
+  const p=brd[r][c]; if(!p||p[0]!==t) return [];
+  const type=p[1]; const enemy=t==='w'?'b':'w'; const moves=[];
+  const add=(nr,nc)=>{
+    if(nr<0||nr>7||nc<0||nc>7) return false;
+    if(brd[nr][nc]&&brd[nr][nc][0]===t) return false;
+    moves.push([nr,nc]); return !brd[nr][nc];
+  };
+  const slide=(dr,dc)=>{ let nr=r+dr,nc=c+dc; while(add(nr,nc)){nr+=dr;nc+=dc;} };
+
+  if(type==='P'){
+    const dir=t==='w'?-1:1; const start=t==='w'?6:1;
+    if(r+dir>=0&&r+dir<=7&&!brd[r+dir][c]) { moves.push([r+dir,c]); if(r===start&&!brd[r+2*dir][c]) moves.push([r+2*dir,c]); }
+    [-1,1].forEach(dc=>{ if(c+dc>=0&&c+dc<=7&&brd[r+dir][c+dc]&&brd[r+dir][c+dc][0]===enemy) moves.push([r+dir,c+dc]); });
+  }
+  else if(type==='N'){ [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]].forEach(([dr,dc])=>add(r+dr,c+dc)); }
+  else if(type==='B'){ [[-1,-1],[-1,1],[1,-1],[1,1]].forEach(([dr,dc])=>slide(dr,dc)); }
+  else if(type==='R'){ [[-1,0],[1,0],[0,-1],[0,1]].forEach(([dr,dc])=>slide(dr,dc)); }
+  else if(type==='Q'){ [[-1,-1],[-1,1],[1,-1],[1,1],[-1,0],[1,0],[0,-1],[0,1]].forEach(([dr,dc])=>slide(dr,dc)); }
+  else if(type==='K'){ [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]].forEach(([dr,dc])=>add(r+dr,c+dc)); }
+  return moves;
+}
+
+function isInCheck(brd,t){
+  let kr=-1,kc=-1;
+  for(let r=0;r<8;r++) for(let c=0;c<8;c++) if(brd[r][c]===t+'K'){kr=r;kc=c;}
+  if(kr<0) return false;
+  const enemy=t==='w'?'b':'w';
+  for(let r=0;r<8;r++) for(let c=0;c<8;c++) if(brd[r][c]&&brd[r][c][0]===enemy)
+    if(getLegalMoves(r,c,brd,enemy,true).some(([nr,nc])=>nr===kr&&nc===kc)) return true;
+  return false;
+}
+
+function getLegalMovesFiltered(r,c){
+  const raw=getLegalMoves(r,c,board,turn);
+  return raw.filter(([nr,nc])=>{
+    const tmp=board.map(row=>[...row]);
+    tmp[nr][nc]=tmp[r][c]; tmp[r][c]=null;
+    return !isInCheck(tmp,turn);
+  });
+}
+
+function applyMove(fr,fc,tr2,tc){
+  const piece=board[fr][fc];
+  const captured=board[tr2][tc];
+  if(captured){
+    if(turn==='w') capturedByW.push(captured);
+    else capturedByB.push(captured);
+  }
+  // Pawn promotion
+  let promoted=piece;
+  if(piece==='wP'&&tr2===0) promoted='wQ';
+  if(piece==='bP'&&tr2===7) promoted='bQ';
+
+  board[tr2][tc]=promoted; board[fr][fc]=null;
+  const notation=FILES[fc]+(8-fr)+(captured?'x':'')+FILES[tc]+(8-tr2)+(promoted!==piece?'=Q':'');
+  moveHistory.push({from:[fr,fc],to:[tr2,tc],piece,captured,notation,turn});
+  lastMove={from:[fr,fc],to:[tr2,tc]};
+  turn=turn==='w'?'b':'w';
+  inCheck=isInCheck(board,turn);
+  // Reset timer for new turn
+  clearInterval(timerInterval); startTimer();
+  return notation;
+}
+
+function hasAnyLegal(t){
+  for(let r=0;r<8;r++) for(let c=0;c<8;c++)
+    if(board[r][c]&&board[r][c][0]===t) if(getLegalMovesFiltered(r,c).length>0) return true;
+  return false;
+}
+
+function checkGameOver(){
+  if(!hasAnyLegal(turn)){
+    gameOver=true; clearInterval(timerInterval);
+    if(inCheck){
+      const winner=turn==='w'?'Purple (OP_NET)':'Orange (Motoswap)';
+      showWinner(winner, turn==='w'?'🐱':'🏍');
+    } else {
+      showWinner('DRAW — Stalemate', '⚖');
+    }
+  }
+}
+
+// ── RENDER ──
+function renderBoard(){
+  const el=document.getElementById('chessBoard');
+  if(!el) return;
+  el.innerHTML='';
+  const ranks=document.getElementById('rankLabels');
+  const files=document.getElementById('fileLabels');
+  if(ranks) ranks.innerHTML='';
+  if(files) files.innerHTML='';
+
+  for(let r=0;r<8;r++){
+    const dr=boardFlipped?7-r:r;
+    if(ranks){
+      const d=document.createElement('div');
+      d.className='coord'; d.textContent=8-dr;
+      d.style.cssText='height:68px;display:flex;align-items:center;justify-content:center;width:18px;';
+      ranks.appendChild(d);
+    }
+    for(let c=0;c<8;c++){
+      const dc=boardFlipped?7-c:c;
+      const sq=document.createElement('div');
+      const isLight=(dr+dc)%2===0;
+      sq.className='sq '+(isLight?'light':'dark');
+      sq.dataset.r=dr; sq.dataset.c=dc;
+
+      if(selectedSq&&selectedSq[0]===dr&&selectedSq[1]===dc) sq.classList.add('selected');
+      if(legalMoves.some(([nr,nc])=>nr===dr&&nc===dc)) {
+        sq.classList.add('legal');
+        if(board[dr][dc]) sq.classList.add('has-piece');
+      }
+      if(lastMove&&((lastMove.from[0]===dr&&lastMove.from[1]===dc)||(lastMove.to[0]===dr&&lastMove.to[1]===dc)))
+        sq.classList.add('last-move');
+      if(inCheck&&board[dr][dc]===(turn+'K')) sq.classList.add('in-check');
+
+      const p=board[dr][dc];
+      if(p){
+        const pd=document.createElement('div');
+        pd.className='piece '+(p[0]==='w'?'white':'black');
+        pd.textContent=PIECES[p]?.emoji||'?';
+        pd.title=PIECES[p]?.label||p;
+        sq.appendChild(pd);
+      }
+      sq.addEventListener('click',()=>handleClick(dr,dc));
+      el.appendChild(sq);
+    }
+  }
+  if(files){
+    FILES.forEach((f,i)=>{
+      const fi=boardFlipped?7-i:i;
+      const d=document.createElement('div');
+      d.className='coord'; d.textContent=FILES[fi];
+      d.style.cssText='width:68px;text-align:center;';
+      files.appendChild(d);
+    });
+  }
+}
+
+function handleClick(r,c){
+  if(gameOver) return;
+  if(gameMode==='ai'&&turn!==playerSide) return;
+
+  if(selectedSq){
+    const [sr,sc]=selectedSq;
+    if(legalMoves.some(([nr,nc])=>nr===r&&nc===c)){
+      const note=applyMove(sr,sc,r,c);
+      selectedSq=null; legalMoves=[];
+      renderBoard(); updateMoveList(); updateCaptured(); updateStatus();
+      checkGameOver();
+      if(!gameOver&&gameMode==='ai'&&turn!==playerSide) setTimeout(aiMove,600);
+      return;
+    }
+    selectedSq=null; legalMoves=[];
+  }
+  if(board[r][c]&&board[r][c][0]===turn){
+    if(gameMode==='ai'&&turn!==playerSide) return;
+    selectedSq=[r,c];
+    legalMoves=getLegalMovesFiltered(r,c);
+  }
+  renderBoard();
+}
+
+// ── AI (random legal move) ──
+function aiMove(){
+  if(gameOver) return;
+  const moves=[];
+  for(let r=0;r<8;r++) for(let c=0;c<8;c++)
+    if(board[r][c]&&board[r][c][0]===turn)
+      getLegalMovesFiltered(r,c).forEach(([nr,nc])=>moves.push([r,c,nr,nc]));
+  if(!moves.length) return;
+
+  // Simple heuristic: prefer captures
+  const captures=moves.filter(([fr,fc,tr2,tc])=>board[tr2][tc]);
+  const pick=captures.length?captures[Math.floor(Math.random()*captures.length)]
+                            :moves[Math.floor(Math.random()*moves.length)];
+  applyMove(pick[0],pick[1],pick[2],pick[3]);
+  renderBoard(); updateMoveList(); updateCaptured(); updateStatus();
+  checkGameOver();
+}
+
+// ── MOVE LIST ──
+function updateMoveList(){
+  const el=document.getElementById('moveList');
+  if(!el) return;
+  if(!moveHistory.length){ el.innerHTML='<div style="font-size:.62rem;color:var(--muted);padding:.5rem 0">No moves yet</div>'; return; }
+  let html=''; let i=0;
+  while(i<moveHistory.length){
+    const w=moveHistory[i]; const b=moveHistory[i+1];
+    html+=`<div class="move-row"><span class="move-num">${Math.floor(i/2)+1}.</span><span class="move-w">${w.notation}</span><span class="move-b">${b?b.notation:''}</span></div>`;
+    i+=2;
+  }
+  el.innerHTML=html; el.scrollTop=el.scrollHeight;
+}
+
+function updateCaptured(){
+  ['W','B'].forEach(side=>{
+    const arr=side==='W'?capturedByW:capturedByB;
+    const el=document.getElementById('captured'+side);
+    if(!el) return;
+    el.innerHTML=arr.map(p=>`<span class="cap-piece">${PIECES[p]?.emoji||'?'}</span>`).join('');
+    const s2=side==='W'?'B':'W';
+    const span=document.getElementById('capturedBy'+s2);
+    if(span) span.textContent=arr.map(p=>PIECES[p]?.emoji||'').join('');
+  });
+}
+
+function updateStatus(){
+  const el=document.getElementById('statusText');
+  if(!el) return;
+  const who=turn==='w'?'<strong>Orange (Motoswap)</strong>':'<strong>Purple (OP_NET)</strong>';
+  if(inCheck) el.innerHTML=`⚡ ${who} is in CHECK!`;
+  else el.innerHTML=`${who} to move`;
+  document.getElementById('turnW').className='turn-indicator '+(turn==='w'?'active':'inactive');
+  document.getElementById('turnB').className='turn-indicator '+(turn==='b'?'active':'inactive');
+}
+
+// ── TIMERS ──
+function startTimer(){
+  timerInterval=setInterval(()=>{
+    if(turn==='w') timerWVal=Math.max(0,timerWVal-1);
+    else timerBVal=Math.max(0,timerBVal-1);
+    updateTimerDisplay();
+    if(timerWVal===0||timerBVal===0){
+      clearInterval(timerInterval); gameOver=true;
+      showWinner(timerWVal===0?'Purple (OP_NET)':'Orange (Motoswap)', timerWVal===0?'🐱':'🏍');
+    }
+  },1000);
+}
+
+function updateTimerDisplay(){
+  ['W','B'].forEach(s=>{
+    const v=s==='W'?timerWVal:timerBVal;
+    const m=String(Math.floor(v/60)).padStart(2,'0');
+    const sec=String(v%60).padStart(2,'0');
+    const el=document.getElementById('timer'+s);
+    if(el){ el.textContent=`${m}:${sec}`; el.classList.toggle('low',v<60); }
+  });
+}
+
+// ── CONTROLS ──
+function undoMove(){
+  if(gameOver||!moveHistory.length) return;
+  const last=moveHistory.pop();
+  board[last.from[0]][last.from[1]]=last.piece;
+  board[last.to[0]][last.to[1]]=last.captured||null;
+  if(last.captured){
+    if(last.turn==='w') capturedByW.pop();
+    else capturedByB.pop();
+  }
+  turn=last.turn; lastMove=moveHistory.length?{from:moveHistory[moveHistory.length-1].from,to:moveHistory[moveHistory.length-1].to}:null;
+  inCheck=isInCheck(board,turn);
+  selectedSq=null; legalMoves=[];
+  renderBoard(); updateMoveList(); updateCaptured(); updateStatus();
+}
+
+function offerDraw(){ if(confirm('Offer a draw? Both players must agree.')) showWinner('DRAW — Agreed','⚖'); }
+function resignGame(){ showWinner(turn==='w'?'Purple (OP_NET)':'Orange (Motoswap)', turn==='w'?'🐱':'🏍'); }
+function flipBoard(){ boardFlipped=!boardFlipped; renderBoard(); }
+
+// ── WINNER ──
+function showWinner(name, icon){
+  gameOver=true; clearInterval(timerInterval);
+  document.getElementById('winnerCrown').textContent=icon;
+  document.getElementById('winnerTitle').textContent=name.includes('DRAW')?'DRAW!':'VICTORY!';
+  document.getElementById('winnerSub').textContent=name.includes('DRAW')?'The match ends in a draw':`${name} wins the match!`;
+  document.getElementById('prizeAmount').textContent=`+${(wager*1.8).toLocaleString()} ${selectedToken}`;
+  document.getElementById('winnerOverlay').style.display='flex';
+}
+function closeWinner(){ document.getElementById('winnerOverlay').style.display='none'; showLobby(); }
+
+// ── LOBBY ──
+let lobbyMode='human', lobbyToken='MOTO', lobbySide='orange', lobbyWagerVal=1000;
+
+function showLobby(){ document.getElementById('lobbyOverlay').style.display='flex'; }
+function closeLobby(){ document.getElementById('lobbyOverlay').style.display='none'; }
+
+function lobbySelectMode(m){
+  lobbyMode=m;
+  ['Human','AI'].forEach(x=>document.getElementById('lobbyMode'+x).classList.toggle('active',x.toLowerCase()===m));
+}
+function lobbySelectToken(t){
+  lobbyToken=t;
+  ['MOTO','PILL'].forEach(x=>document.getElementById('lobbyTk'+x).classList.toggle('active',x===t));
+  updateLobbySummary();
+}
+function pickSide(s){
+  lobbySide=s;
+  document.getElementById('sideOrange').classList.toggle('active',s==='orange');
+  document.getElementById('sidePurple').classList.toggle('active',s==='purple');
+}
+function updateLobbySummary(){
+  const w=parseInt(document.getElementById('lobbyWager').value)||1000;
+  lobbyWagerVal=w;
+  document.getElementById('summaryWager').textContent=`${w.toLocaleString()} $${lobbyToken}`;
+  document.getElementById('summaryLP').textContent=`${Math.floor(w*.9).toLocaleString()} goes to prize pool`;
+  document.getElementById('summaryTip').textContent=`${Math.floor(w*.1).toLocaleString()} to tip jar`;
+  document.getElementById('summaryWin').textContent=`~${Math.floor(w*1.8).toLocaleString()} $${lobbyToken}`;
+}
+document.addEventListener('input',e=>{ if(e.target.id==='lobbyWager') updateLobbySummary(); });
+
+function startGame(){
+  wager=lobbyWagerVal; selectedToken=lobbyToken; gameMode=lobbyMode;
+  playerSide=lobbySide==='orange'?'w':'b';
+  document.getElementById('playerWName').textContent=lobbySide==='orange'?'You (Orange)':'Opponent (Orange)';
+  document.getElementById('playerBName').textContent=lobbySide==='purple'?'You (OP_NET)':'Opponent (OP_NET)';
+  if(lobbyMode==='ai') document.getElementById(lobbySide==='orange'?'playerBName':'playerWName').textContent='🤖 AI Engine';
+  closeLobby();
+  initBoard();
+  // Add tip jar
+  const tip=Math.floor(wager*.1);
+  document.getElementById('tipDisplay').textContent=(3210+tip).toLocaleString();
+  document.getElementById('tipTotal').textContent=(3210+tip).toLocaleString()+' $MOTO';
+  // Update LP
+  document.getElementById('lpTotal').textContent=(84200+Math.floor(wager*.9)).toLocaleString()+' $'+selectedToken;
+  // AI moves first if player is black
+  if(gameMode==='ai'&&playerSide==='b') setTimeout(aiMove,800);
+}
+
+// ── LEFT PANEL CONTROLS ──
+function selectToken(t){
+  selectedToken=t;
+  ['MOTO','PILL'].forEach(x=>document.getElementById('tk'+x).classList.toggle('active',x===t));
+  updateFeeRow();
+}
+function selectMode(m){
+  gameMode=m;
+  ['Human','AI'].forEach(x=>document.getElementById('mode'+x).classList.toggle('active',x.toLowerCase()===m));
+}
+function updateFeeRow(){
+  const w=parseInt(document.getElementById('wagerInput').value)||1000;
+  document.getElementById('lpCut').textContent=Math.floor(w*.9).toLocaleString()+' '+selectedToken;
+  document.getElementById('creatorCut').textContent=Math.floor(w*.1).toLocaleString()+' '+selectedToken;
+}
+document.addEventListener('input',e=>{ if(e.target.id==='wagerInput') updateFeeRow(); });
+
+// ── BETS ──
+const DEMO_BETS=[
+  {addr:'bc1q…4f2a',side:'orange',amount:'2,000 $MOTO'},
+  {addr:'bc1p…9z3c',side:'purple',amount:'500,000 $PILL'},
+  {addr:'bc1q…1b7e',side:'orange',amount:'5,000 $MOTO'},
+  {addr:'bc1p…cc4f',side:'purple',amount:'1,500 $MOTO'},
+];
+function renderBets(){
+  const el=document.getElementById('betsList');
+  if(!el) return;
+  el.innerHTML=DEMO_BETS.map(b=>`
+    <div class="bet-row">
+      <span class="bet-addr">${b.addr}</span>
+      <span class="bet-side ${b.side}">${b.side==='orange'?'🏍':'🐱'} ${b.side}</span>
+      <span class="bet-amount">${b.amount}</span>
+    </div>`).join('');
+}
+function selectBetSide(s){
+  betSide=s;
+  document.getElementById('betOrange').classList.toggle('active',s==='orange');
+  document.getElementById('betPurple').classList.toggle('active',s==='purple');
+}
+function placeBet(){
+  const amt=document.getElementById('betAmount').value;
+  if(!amt) return;
+  DEMO_BETS.unshift({addr:'You',side:betSide,amount:`${parseInt(amt).toLocaleString()} $${selectedToken}`});
+  if(DEMO_BETS.length>6) DEMO_BETS.pop();
+  renderBets();
+  showToast(`✓ Bet placed: ${parseInt(amt).toLocaleString()} $${selectedToken} on ${betSide}`);
+}
+
+// ── WALLET ──
+function connectWallet(){
+  walletConnected=!walletConnected;
+  const btn=document.getElementById('connectBtn');
+  btn.textContent=walletConnected?'bc1q…dall':'Connect Wallet';
+  btn.className='btn '+(walletConnected?'connected':'');
+}
+
+function toggleSpectate(){ showToast('👁 Spectator mode — you can watch and bet but not move pieces'); }
+function sendTip(){
+  const amt=prompt('Tip amount ($MOTO):','100');
+  if(!amt) return;
+  const cur=parseInt(document.getElementById('tipDisplay').textContent.replace(/,/g,''))||3210;
+  const newVal=cur+parseInt(amt);
+  document.getElementById('tipDisplay').textContent=newVal.toLocaleString();
+  document.getElementById('tipTotal').textContent=newVal.toLocaleString()+' $MOTO';
+  showToast(`💛 Tip sent: ${parseInt(amt).toLocaleString()} $MOTO to creator`);
+}
+
+// ── COUNTDOWN TO FRIDAY ──
+function updateCountdown(){
+  const now=new Date(); const day=now.getDay();
+  const daysUntilFri=(5-day+7)%7||7;
+  const fri=new Date(now); fri.setDate(now.getDate()+daysUntilFri);
+  fri.setHours(20,0,0,0);
+  const diff=fri-now;
+  const d=Math.floor(diff/86400000); const h=Math.floor((diff%86400000)/3600000);
+  document.getElementById('lpNext').textContent=`${d}d ${h}h`;
+}
+setInterval(updateCountdown,60000); updateCountdown();
+
+// ── SPECTATOR COUNT (animated) ──
+let specBase=12;
+setInterval(()=>{
+  specBase=Math.max(8,specBase+(Math.random()>.6?1:-1));
+  document.getElementById('specCount').textContent=`${specBase} watching`;
+},5000);
+
+// ── TOAST ──
+function showToast(msg){
+  let t=document.getElementById('toast');
+  if(!t){ t=document.createElement('div'); t.id='toast';
+    t.style.cssText='position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--border);color:var(--text);font-family:"Space Mono",monospace;font-size:.72rem;letter-spacing:.05em;padding:8px 18px;z-index:9998;animation:fadeUp .3s ease both;white-space:nowrap;transition:opacity .4s';
+    document.body.appendChild(t);}
+  t.textContent=msg; t.style.opacity='1';
+  clearTimeout(t._t); t._t=setTimeout(()=>t.style.opacity='0',3000);
+}
+
+// ── INIT ──
+window.addEventListener('DOMContentLoaded',()=>{
+  initBoard();
+  renderBets();
+  updateFeeRow();
+  updateLobbySummary();
+  // Show lobby on first load
+  setTimeout(()=>showLobby(), 300);
+});
+
+// ═══════════════════════════════════════════════════
+//  RIPPLE ENGINE (same as Token Forge)
+// ═══════════════════════════════════════════════════
+(function(){
+  const canvas=document.getElementById('rippleCanvas');
+  const gl=canvas.getContext('webgl')||canvas.getContext('experimental-webgl');
+  if(!gl){init2D();return;}
+
+  const VS=`attribute vec2 a_pos;void main(){gl_Position=vec4(a_pos,0.0,1.0);}`;
+  const FS=`
+    precision highp float;
+    uniform vec2 u_res;uniform float u_time;uniform vec3 u_drops[12];
+    float ripple(vec2 uv,vec2 center,float born){
+      float age=u_time-born;float dist=length(uv-center);
+      float wave=sin(dist*18.0-age*4.5)*exp(-dist*2.2)*exp(-age*0.5);
+      float mask=smoothstep(age*280.0,0.0,dist);return wave*mask*0.5;
+    }
+    void main(){
+      vec2 uv=gl_FragCoord.xy/u_res;vec2 aspect=vec2(u_res.x/u_res.y,1.0);
+      vec2 uvA=uv*aspect;float h=0.0;
+      for(int i=0;i<12;i++){if(u_drops[i].z<0.0)continue;
+        vec2 c=(u_drops[i].xy/u_res)*aspect;h+=ripple(uvA,c,u_drops[i].z);}
+      float swirl=sin(uv.x*3.1+u_time*0.18)*0.5+cos(uv.y*2.7-u_time*0.13)*0.5;
+      h+=swirl*0.04;
+      vec3 deep=vec3(0.027,0.016,0.075);vec3 mid=vec3(0.12,0.05,0.32);
+      vec3 bright=vec3(0.45,0.18,0.85);vec3 sheen=vec3(0.78,0.42,1.00);
+      float t=clamp(h+0.5,0.0,1.0);
+      vec3 col=mix(deep,mid,smoothstep(0.0,0.45,t));
+      col=mix(col,bright,smoothstep(0.45,0.7,t));
+      col=mix(col,sheen,smoothstep(0.7,1.0,t)*0.6);
+      float fromCentre=1.0-length((uv-vec2(0.5,0.6))*vec2(1.0,0.7));
+      col+=vec3(0.18,0.05,0.0)*pow(clamp(fromCentre,0.0,1.0),3.0)*0.4;
+      gl_FragColor=vec4(col,1.0);
+    }`;
+
+  function compile(type,src){const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);return s;}
+  const prog=gl.createProgram();
+  gl.attachShader(prog,compile(gl.VERTEX_SHADER,VS));
+  gl.attachShader(prog,compile(gl.FRAGMENT_SHADER,FS));
+  gl.linkProgram(prog);gl.useProgram(prog);
+  const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+  const loc=gl.getAttribLocation(prog,'a_pos');
+  gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+  const uRes=gl.getUniformLocation(prog,'u_res');
+  const uTime=gl.getUniformLocation(prog,'u_time');
+  const uDrops=gl.getUniformLocation(prog,'u_drops[0]');
+
+  const drops=Array.from({length:12},()=>[0,0,-99]);
+  let dropIdx=0;
+  function spawnDrop(x,y){drops[dropIdx%12]=[x,y,performance.now()/1000];dropIdx++;}
+
+  function scheduleAmbient(){
+    setTimeout(()=>{spawnDrop(Math.random()*canvas.width,Math.random()*canvas.height);scheduleAmbient();},
+    4000+Math.random()*3000);
+  }
+  scheduleAmbient();
+
+  window.addEventListener('click',e=>spawnDrop(e.clientX,e.clientY));
+  window.addEventListener('touchstart',e=>{const t=e.touches[0];spawnDrop(t.clientX,t.clientY);},{passive:true});
+
+  function resize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;gl.viewport(0,0,canvas.width,canvas.height);}
+  resize();window.addEventListener('resize',resize);
+
+  function render(){
+    const t=performance.now()/1000;
+    gl.uniform2f(uRes,canvas.width,canvas.height);gl.uniform1f(uTime,t);
+    gl.uniform3fv(uDrops,new Float32Array(drops.flat()));
+    gl.drawArrays(gl.TRIANGLE_STRIP,0,4);requestAnimationFrame(render);
+  }
+  render();
+  setTimeout(()=>spawnDrop(canvas.width*.3,canvas.height*.4),100);
+  setTimeout(()=>spawnDrop(canvas.width*.7,canvas.height*.6),600);
+  setTimeout(()=>spawnDrop(canvas.width*.5,canvas.height*.3),1100);
+  return;
+
+  function init2D(){
+    const c=document.getElementById('rippleCanvas');const ctx=c.getContext('2d');
+    function r(){c.width=window.innerWidth;c.height=window.innerHeight;}r();window.addEventListener('resize',r);
+    const d=[];setInterval(()=>d.push({x:Math.random()*c.width,y:Math.random()*c.height,r:0,born:Date.now()}),5000);
+    function draw(){ctx.fillStyle='#07050f';ctx.fillRect(0,0,c.width,c.height);
+      const now=Date.now();for(let i=d.length-1;i>=0;i--){const p=d[i];const age=(now-p.born)/1000;p.r=age*120;
+        const a=Math.max(0,.3-age*.1);if(a<=0){d.splice(i,1);continue;}
+        ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.strokeStyle=`rgba(124,58,237,${a})`;ctx.lineWidth=1.5;ctx.stroke();}
+      requestAnimationFrame(draw);}draw();
+  }
+})();
+</script>
+</body>
+</html>
