@@ -1,0 +1,20 @@
+{
+  "name": "opnet-chess",
+  "version": "1.0.0",
+  "private": true,
+  "description": "OP_NET Chess — Wagered chess dApp on Bitcoin L1",
+  "workspaces": [
+    "contract",
+    "frontend"
+  ],
+  "scripts": {
+    "build:contract": "cd contract && npm run build",
+    "build:frontend": "cd frontend && npm run build",
+    "build": "npm run build:contract && npm run build:frontend",
+    "dev": "cd frontend && npm run dev",
+    "deploy:testnet": "node scripts/deploy.js --network testnet",
+    "deploy:mainnet": "node scripts/deploy.js --network mainnet"
+  },
+  "keywords": ["bitcoin", "opnet", "chess", "dapp", "smart-contract"],
+  "license": "MIT"
+}

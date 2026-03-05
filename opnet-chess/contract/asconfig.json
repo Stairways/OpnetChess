@@ -1,0 +1,22 @@
+{
+  "extends": "assemblyscript/std/assembly.json",
+  "targets": {
+    "debug": {
+      "outFile": "build/chess.debug.wasm",
+      "textFile": "build/chess.debug.wat",
+      "sourceMap": true,
+      "debug": true
+    },
+    "release": {
+      "outFile": "build/chess.wasm",
+      "textFile": "build/chess.wat",
+      "optimize": true,
+      "optimizeLevel": 3,
+      "shrinkLevel": 2,
+      "runtime": "stub"
+    }
+  },
+  "options": {
+    "bindings": "esm"
+  }
+}

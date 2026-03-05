@@ -1,0 +1,17 @@
+{
+  "name": "@opnet-chess/contract",
+  "version": "1.0.0",
+  "description": "OP_NET Chess smart contract — AssemblyScript",
+  "scripts": {
+    "build": "asc src/index.ts --target release --outFile build/chess.wasm --textFile build/chess.wat --optimize --runtime stub --exportRuntime --use abort=",
+    "build:debug": "asc src/index.ts --target debug --outFile build/chess.debug.wasm --sourceMap --debug",
+    "clean": "rm -rf build"
+  },
+  "dependencies": {
+    "@btc-vision/btc-runtime": "^1.0.0",
+    "as-bignum": "^0.2.0"
+  },
+  "devDependencies": {
+    "assemblyscript": "^0.27.0"
+  }
+}
